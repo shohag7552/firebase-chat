@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -16,89 +17,25 @@ class ChatController extends GetxController {
   //List messages = [].obs;
   var showTime = false;
   String? token;
+  String? receiverToken = '';
 
-  // sendMessage({String? msg, String? senderNumber, String? receiverNumber}) {
-  //   print('here');
-  //   db.create(
-  //       senderNumber: senderNumber, msg: msg, receiverNumber: receiverNumber);
-  // }
+  getReceiverToken({String? receiverNumber}) async {
+    print('here for take tolen');
+    var query = await FirebaseFirestore.instance
+        .collection('flutterChat')
+        .doc(receiverNumber)
+        .get();
 
-  // initialReadMessage() async {
-  //   isLoading(true);
-  //   await db
-  //       .readMessageData(
-  //           senderNumber: '01677696277', receiverNumber: '01838320622')
-  //       .then((value) {
-  //     if (value.isNotEmpty) {
-  //       messages.clear();
-  //       messages.addAll(value);
-  //       isLoading(false);
-  //     }
-  //   }, onError: (err) {
-  //     print(err);
-  //     isLoading(false);
-  //   });
-  //   print(messages);
-  //   update();
-  // }
+    var a = query.data();
+    if (a != null) {
+      receiverToken = a['token'];
+      update();
+    }
 
-  // callData() {
-  //   final Stream<QuerySnapshot> messengers = FirebaseFirestore.instance
-  //       .collection('flutter chat')
-  //       .doc('01677696277')
-  //       .collection('01838320622')
-  //       .orderBy('timestamp')
-  //       .snapshots();
-  // }
-
-  // sendNotification() {
-  //   FirebaseMessaging.onMessage.listen((e) {
-  //     RemoteNotification notification = e.notification!;
-  //     AndroidNotification android = e.notification!.android!;
-  //     if (notification != null && android != null) {
-  //       flutterLocalNotificationsPlugin.show(
-  //         notification.hashCode,
-  //         notification.title,
-  //         notification.body,
-  //         NotificationDetails(
-  //           android: AndroidNotificationDetails(
-  //             channel.id,
-  //             channel.name,
-  //             color: Colors.black,
-  //             playSound: true,
-  //             icon: '@mipmap/ic_launcher',
-  //           ),
-  //         ),
-  //       );
-  //     }
-  //   });
-
-  //   FirebaseMessaging.onMessageOpenedApp.listen((event) {
-  //     print('new onmessage published');
-  //     RemoteNotification notification = event.notification!;
-  //     AndroidNotification android = event.notification!.android!;
-  //     if (notification != null && android != null) {
-  //       print('you are here');
-  //     }
-  //   });
-  // }
-
-  // showNotification2() {
-  //   flutterLocalNotificationsPlugin.show(
-  //     0,
-  //     'sender number',
-  //     "message body",
-  //     NotificationDetails(
-  //       android: AndroidNotificationDetails(
-  //         channel.id,
-  //         channel.name,
-  //         color: Colors.black,
-  //         playSound: true,
-  //         icon: '@mipmap/ic_launcher',
-  //       ),
-  //     ),
-  //   );
-  // }
+    print(query.data());
+    print(a!['token']);
+    print('token got');
+  }
 
   isSelect() {
     showTime = !showTime;
@@ -128,6 +65,16 @@ class ChatController extends GetxController {
     await FirebaseFirestore.instance
         .collection('flutterChat')
         .doc(senderNumber!)
+        .set(
+      {
+        'token': token,
+        'sender': senderNumber,
+      },
+    );
+
+    await FirebaseFirestore.instance
+        .collection('flutterChat')
+        .doc(senderNumber)
         .collection(receiverNumber!)
         .doc()
         .set(
@@ -136,6 +83,7 @@ class ChatController extends GetxController {
         'timestamp': Timestamp.fromDate(DateTime.now()),
         'sender_phone': senderNumber,
         'show_time': false,
+        'token': token,
       },
     );
     await FirebaseFirestore.instance
@@ -149,9 +97,13 @@ class ChatController extends GetxController {
         'timestamp': Timestamp.fromDate(DateTime.now()),
         'sender_phone': senderNumber,
         'show_time': false,
+        'token': ''
       },
     );
     print('successful');
+
+    sendPushMessage(
+        receiverToken: receiverToken, senderNumber: senderNumber, message: msg);
   }
 
   @override
@@ -185,31 +137,41 @@ class ChatController extends GetxController {
     print('token is : $token');
   }
 
-  Future<void> sendPushMessage() async {
-    if (token == null) {
+  Future<void> sendPushMessage(
+      {String? receiverToken, String? senderNumber, String? message}) async {
+    if (receiverToken == null) {
       print('Unable to send FCM message, no token exists.');
       return;
     }
 
     try {
-      print('here');
+      log('.........................here is for json pass');
       await http.post(
-        Uri.parse('https://api.rnfirebase.io/messaging/send'),
+        Uri.parse('https://fcm.googleapis.com/fcm/send'),
         headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
+          'Content-Type': 'application/json',
+          'Authorization':
+              'key=AAAAO4ffSsg:APA91bESoSG8rCBlF8sm2ObDvSmWZjSdxGoGDq3euhN-RaVROON5LTPrRjBFw_tUUqfsQyXuh8N4RVlV8OJOYlZmHfEEgUfTOOTm1qiZJ9CTUoh5DKrTn82p8m_KSkuhNiKvptEKnMnz',
         },
-        body: jsonEncode(
-          {
-            'to': token,
-            'notification': {
-              'body': 'New announcement assigned',
-              'OrganizationId': '2',
-              'content available': true,
-              'priority': 'high'
-            },
-            'data': {'priority': 'high'}
+        body: jsonEncode({
+          "to": receiverToken,
+          "notification": {
+            "title": "From: $senderNumber",
+            "body": "$message",
+            "OrganizationId": "2",
+            "content available": true,
+            "priority": "high",
+            "subtitle": "Elementary School",
+            "Title": "hello"
           },
-        ),
+          "data": {
+            "priority": "high",
+            "sound": "app_sound.wav",
+            "content_available": true,
+            "bodyText": "New announcement assigned",
+            "organization": "xyz School"
+          }
+        }),
       );
       print('FCM request for device sent!');
     } catch (e) {

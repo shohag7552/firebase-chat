@@ -216,23 +216,22 @@ class ChatPage extends StatelessWidget {
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 20),
                       child: TextField(
-                        decoration: const InputDecoration(
-                            hintText: 'type message..',
-                            border: InputBorder.none),
-                        controller: chatController.messageController,
-                        onTap: () {
-                          // if (chatController
-                          //     .messageController.text.isNotEmpty) {
-                          //   chatController.sendMessage(
-                          //     senderNumber: previousData['first'],
-                          //     receiverNumber: previousData['second'],
-                          //     msg: chatController.messageController.text,
-                          //   );
-                          //   chatController.showNotification();
-                          //   chatController.messageController.text = '';
-                          // }
-                        },
-                      ),
+                          decoration: const InputDecoration(
+                              hintText: 'type message..',
+                              border: InputBorder.none),
+                          controller: chatController.messageController,
+                          onSubmitted: (msg) {
+                            if (msg.isNotEmpty) {
+                              chatController.getReceiverToken(
+                                  receiverNumber: previousData['second']);
+                              chatController.sendMessage(
+                                senderNumber: previousData['first'],
+                                receiverNumber: previousData['second'],
+                                msg: chatController.messageController.text,
+                              );
+                              chatController.messageController.text = '';
+                            }
+                          }),
                     ),
                   ),
                   Expanded(
@@ -240,6 +239,9 @@ class ChatPage extends StatelessWidget {
                     child: IconButton(
                       onPressed: () {
                         if (chatController.messageController.text.isNotEmpty) {
+                          chatController.getReceiverToken(
+                              receiverNumber: previousData['second']);
+                          print(chatController.receiverToken);
                           chatController.sendMessage(
                             senderNumber: previousData['first'],
                             receiverNumber: previousData['second'],
@@ -249,7 +251,9 @@ class ChatPage extends StatelessWidget {
                           //   senderNumber: previousData['second'],
                           //   msg: chatController.messageController.text,
                           // );
-                          chatController.sendPushMessage();
+                          // chatController.sendPushMessage(
+                          //     receiverToken: chatController.receiverToken);
+
                           chatController.messageController.text = '';
                         }
                       },
